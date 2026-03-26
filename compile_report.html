@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity Compile Error Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; padding: 30px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 8px; color: #58a6ff; }
+  .subtitle { text-align: center; color: #8b949e; margin-bottom: 30px; font-size: 14px; }
+
+  /* Summary Cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; text-align: center; }
+  .card .number { font-size: 42px; font-weight: 700; }
+  .card .label { font-size: 13px; color: #8b949e; margin-top: 4px; }
+  .card.green .number { color: #3fb950; }
+  .card.yellow .number { color: #d29922; }
+  .card.red .number { color: #f85149; }
+  .card.blue .number { color: #58a6ff; }
+
+  /* Big Status Banner */
+  .status-banner { background: linear-gradient(135deg, #0d4429, #1a5c38); border: 1px solid #238636; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 30px; }
+  .status-banner.error { background: linear-gradient(135deg, #4a1219, #6e2028); border-color: #f85149; }
+  .status-banner h2 { font-size: 24px; color: #3fb950; margin-bottom: 6px; }
+  .status-banner.error h2 { color: #f85149; }
+  .status-banner p { color: #8b949e; font-size: 14px; }
+  .status-icon { font-size: 48px; margin-bottom: 10px; }
+
+  /* Section */
+  .section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 16px 20px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-body { padding: 20px; }
+
+  /* Commit Table */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; color: #8b949e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #30363d; }
+  td { padding: 10px 12px; border-bottom: 1px solid #21262d; font-size: 14px; }
+  tr:last-child td { border-bottom: none; }
+  .hash { color: #58a6ff; font-family: monospace; font-size: 13px; }
+  .author { color: #d2a8ff; font-weight: 500; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-ok { background: #0d4429; color: #3fb950; border: 1px solid #238636; }
+  .badge-warn { background: #3d2e00; color: #d29922; border: 1px solid #9e6a03; }
+  .badge-error { background: #4a1219; color: #f85149; border: 1px solid #da3633; }
+
+  /* File list */
+  .file-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .file-item { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: monospace; display: flex; align-items: center; gap: 6px; }
+  .file-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: #3fb950; }
+  .dot-yellow { background: #d29922; }
+
+  /* Warning list */
+  .warning-item { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+  .warning-item:last-child { margin-bottom: 0; }
+  .warning-item .file { color: #58a6ff; font-family: monospace; font-size: 13px; }
+  .warning-item .line { color: #d29922; font-size: 12px; margin-top: 2px; }
+  .warning-item .desc { color: #c9d1d9; font-size: 13px; margin-top: 6px; }
+  .warning-item code { background: #1c2129; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #f0883e; }
+
+  /* Dependency graph */
+  .dep-section { overflow-x: auto; }
+  .dep-graph { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+  .dep-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .dep-name { width: 180px; text-align: right; font-family: monospace; color: #58a6ff; flex-shrink: 0; }
+  .dep-bar-container { flex: 1; height: 24px; background: #0d1117; border-radius: 4px; overflow: hidden; position: relative; }
+  .dep-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: #fff; font-weight: 600; min-width: 30px; }
+  .dep-bar.refs { background: linear-gradient(90deg, #1f6feb, #388bfd); }
+  .dep-count { width: 30px; text-align: center; color: #8b949e; font-size: 12px; flex-shrink: 0; }
+
+  /* Pusher section */
+  .pusher-card { display: flex; align-items: center; gap: 20px; padding: 20px; }
+  .pusher-avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #6e40c9, #8957e5); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .pusher-info h3 { color: #d2a8ff; font-size: 18px; }
+  .pusher-info p { color: #8b949e; font-size: 13px; margin-top: 4px; }
+  .pusher-stats { display: flex; gap: 20px; margin-top: 10px; }
+  .pusher-stat { text-align: center; }
+  .pusher-stat .val { font-size: 20px; font-weight: 700; color: #c9d1d9; }
+  .pusher-stat .lbl { font-size: 11px; color: #8b949e; }
+
+  .no-errors-msg { text-align: center; padding: 40px; color: #3fb950; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Unity Project Compile Analysis</h1>
+  <p class="subtitle">SampleScheduledTask &mdash; Unity 6000.3.11f1 &mdash; Analyzed on 2026-03-26</p>
+
+  <!-- Status Banner -->
+  <div class="status-banner">
+    <div class="status-icon">&#10003;</div>
+    <h2>No Compile Errors Found</h2>
+    <p>All 21 C# scripts passed static analysis successfully. The project should compile in Unity without errors.</p>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="card green">
+      <div class="number">0</div>
+      <div class="label">Compile Errors</div>
+    </div>
+    <div class="card yellow">
+      <div class="number">3</div>
+      <div class="label">Warnings (unused usings)</div>
+    </div>
+    <div class="card blue">
+      <div class="number">21</div>
+      <div class="label">Scripts Analyzed</div>
+    </div>
+    <div class="card blue">
+      <div class="number">4</div>
+      <div class="label">Commits Checked</div>
+    </div>
+  </div>
+
+  <!-- Pushers Who Introduced Errors -->
+  <div class="section">
+    <div class="section-header">&#128100; Pushers With Stuck Compile Errors</div>
+    <div class="section-body">
+      <div class="no-errors-msg">
+        &#127881; No stuck compile errors found &mdash; no pushers to blame!
+      </div>
+    </div>
+  </div>
+
+  <!-- Commit History -->
+  <div class="section">
+    <div class="section-header">&#128203; Commit History &amp; Error Status</div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr><th>Commit</th><th>Author</th><th>Message</th><th>Errors</th><th>Warnings</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="hash">f66c92a</span></td>
+            <td><span class="author">Duc.Phan Le Cong</span></td>
+            <td>Fix bug, add new dotween</td>
+            <td><span class="badge badge-ok">0 errors</span></td>
+            <td><span class="badge badge-warn">3 warnings</span></td>
+          </tr>
+          <tr>
+            <td><span class="hash">2f5bc88</span></td>
+            <td><span class="author">Duc.Phan Le Cong</span></td>
+            <td>Add DoTween</td>
+            <td><span class="badge badge-ok">0 errors</span></td>
+            <td><span class="badge badge-ok">-</span></td>
+          </tr>
+          <tr>
+            <td><span class="hash">8a15417</span></td>
+            <td><span class="author">Duc.Phan Le Cong</span></td>
+            <td>Add system scripts</td>
+            <td><span class="badge badge-ok">0 errors</span></td>
+            <td><span class="badge badge-ok">-</span></td>
+          </tr>
+          <tr>
+            <td><span class="hash">136bd29</span></td>
+            <td><span class="author">Duc.Phan Le Cong</span></td>
+            <td>First Init Commit</td>
+            <td><span class="badge badge-ok">0 errors</span></td>
+            <td><span class="badge badge-ok">-</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sole Contributor -->
+  <div class="section">
+    <div class="section-header">&#128101; Contributors</div>
+    <div class="section-body">
+      <div class="pusher-card">
+        <div class="pusher-avatar">DP</div>
+        <div>
+          <div class="pusher-info">
+            <h3>&#272;&#7913;c.Phan L&ecirc; C&ocirc;ng</h3>
+            <p>Sole contributor &mdash; all 4 commits</p>
+          </div>
+          <div class="pusher-stats">
+            <div class="pusher-stat"><div class="val">4</div><div class="lbl">Commits</div></div>
+            <div class="pusher-stat"><div class="val" style="color:#3fb950;">0</div><div class="lbl">Errors Introduced</div></div>
+            <div class="pusher-stat"><div class="val" style="color:#d29922;">3</div><div class="lbl">Warnings</div></div>
+            <div class="pusher-stat"><div class="val">21</div><div class="lbl">Scripts Added</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Warnings Detail -->
+  <div class="section">
+    <div class="section-header" style="color:#d29922;">&#9888; Warnings (Unused Using Directives)</div>
+    <div class="section-body">
+      <div class="warning-item">
+        <div class="file">Assets/Scripts/System/AudioManager.cs</div>
+        <div class="line">Line 4</div>
+        <div class="desc"><code>using System.Xml.Linq;</code> &mdash; imported but never used in the file</div>
+      </div>
+      <div class="warning-item">
+        <div class="file">Assets/Scripts/System/AudioManager.cs</div>
+        <div class="line">Line 1</div>
+        <div class="desc"><code>using DG.Tweening;</code> &mdash; imported but never used in the file</div>
+      </div>
+      <div class="warning-item">
+        <div class="file">Assets/Scripts/System/GameManager.cs</div>
+        <div class="line">Line 3</div>
+        <div class="desc"><code>using System.Linq;</code> &mdash; imported but never used in the file</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Potential Runtime Issue -->
+  <div class="section">
+    <div class="section-header" style="color:#58a6ff;">&#128270; Potential Runtime Issues</div>
+    <div class="section-body">
+      <div class="warning-item">
+        <div class="file">Assets/Scripts/System/ViewManager.cs</div>
+        <div class="line">Line ~57 &mdash; <code>result.ShowView(viewData)</code></div>
+        <div class="desc">If no view matches the requested <code>ViewType</code>, <code>result</code> remains <code>null</code> and calling <code>ShowView()</code> on it will throw a <strong>NullReferenceException</strong> at runtime. Consider adding a null check.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Files Checked -->
+  <div class="section">
+    <div class="section-header">&#128194; All Scripts Analyzed (21 files)</div>
+    <div class="section-body">
+      <div class="file-grid">
+        <div class="file-item"><span class="dot dot-green"></span>AudioManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>AutoDestroy.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>BootManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>ConfigManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>Data.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>EventManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>GameManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>IEvent.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>LoadSceneManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>PersistentSingleton.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>PlayerDataManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>PopupBase.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>PopupManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>SceneSingleton.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>SystemManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>TimeManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>TutorialManager.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>TutorialStepBase.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>Utils.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>ViewBase.cs</div>
+        <div class="file-item"><span class="dot dot-green"></span>ViewManager.cs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cross-file dependency check -->
+  <div class="section">
+    <div class="section-header">&#128279; Cross-File Dependency Usage (references by other scripts)</div>
+    <div class="section-body dep-section">
+      <div class="dep-graph">
+        <div class="dep-row"><span class="dep-name">PersistentSingleton&lt;T&gt;</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:90%;">9 dependents</div></div><div class="dep-count">9</div></div>
+        <div class="dep-row"><span class="dep-name">ViewType</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:30%;">3 dependents</div></div><div class="dep-count">3</div></div>
+        <div class="dep-row"><span class="dep-name">PopUpType</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:30%;">3 dependents</div></div><div class="dep-count">3</div></div>
+        <div class="dep-row"><span class="dep-name">ViewData</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:20%;">2 dependents</div></div><div class="dep-count">2</div></div>
+        <div class="dep-row"><span class="dep-name">PopUpData</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:20%;">2 dependents</div></div><div class="dep-count">2</div></div>
+        <div class="dep-row"><span class="dep-name">PlayerData</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:30%;">3 dependents</div></div><div class="dep-count">3</div></div>
+        <div class="dep-row"><span class="dep-name">ConfigManager</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:20%;">2 dependents</div></div><div class="dep-count">2</div></div>
+        <div class="dep-row"><span class="dep-name">PlayerDataManager</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:20%;">2 dependents</div></div><div class="dep-count">2</div></div>
+        <div class="dep-row"><span class="dep-name">ViewManager</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:10%;">1 dependent</div></div><div class="dep-count">1</div></div>
+        <div class="dep-row"><span class="dep-name">LoadSceneManager</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:10%;">1 dependent</div></div><div class="dep-count">1</div></div>
+        <div class="dep-row"><span class="dep-name">PopupManager</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:10%;">1 dependent</div></div><div class="dep-count">1</div></div>
+        <div class="dep-row"><span class="dep-name">SceneSingleton&lt;T&gt;</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:10%;">1 dependent</div></div><div class="dep-count">1</div></div>
+        <div class="dep-row"><span class="dep-name">IEvent</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:10%;">1 dependent</div></div><div class="dep-count">1</div></div>
+        <div class="dep-row"><span class="dep-name">Utils</span><div class="dep-bar-container"><div class="dep-bar refs" style="width:20%;">2 dependents</div></div><div class="dep-count">2</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
