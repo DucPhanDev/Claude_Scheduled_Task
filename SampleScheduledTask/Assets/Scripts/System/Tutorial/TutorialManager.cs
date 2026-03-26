@@ -26,8 +26,6 @@ public class TutorialManager : PersistentSingleton<TutorialManager>
         }
         else
         {
-            GameManager.Instance.EnableRotating(true);
-            GameManager.Instance.StartCountdown(true);
             Tutorial_Panel.SetActive(false);
             return false;
         }
