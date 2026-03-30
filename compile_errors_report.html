@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity Compile Errors Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: #eee; padding: 30px; }
+  h1 { text-align: center; color: #e94560; margin-bottom: 10px; font-size: 28px; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
+
+  .summary-cards { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+  .card { background: #16213e; border-radius: 12px; padding: 20px 30px; text-align: center; min-width: 160px; border: 1px solid #0f3460; }
+  .card .number { font-size: 36px; font-weight: bold; }
+  .card .label { font-size: 13px; color: #999; margin-top: 5px; }
+  .card.error .number { color: #e94560; }
+  .card.warning .number { color: #f5a623; }
+  .card.info .number { color: #4ecdc4; }
+  .card.ok .number { color: #2ecc71; }
+
+  .section { background: #16213e; border-radius: 12px; padding: 25px; margin-bottom: 25px; border: 1px solid #0f3460; }
+  .section h2 { color: #e94560; margin-bottom: 15px; font-size: 20px; display: flex; align-items: center; gap: 10px; }
+  .section h2 .badge { font-size: 12px; background: #e94560; color: white; padding: 2px 10px; border-radius: 10px; }
+  .section h2 .badge.warn { background: #f5a623; }
+  .section h2 .badge.info { background: #4ecdc4; color: #1a1a2e; }
+
+  .error-item { background: #1a1a2e; border-radius: 8px; padding: 18px; margin-bottom: 12px; border-left: 4px solid #e94560; }
+  .error-item.warning { border-left-color: #f5a623; }
+  .error-item.info-item { border-left-color: #4ecdc4; }
+  .error-item .file { color: #4ecdc4; font-family: 'Courier New', monospace; font-size: 13px; margin-bottom: 6px; }
+  .error-item .line-ref { color: #f5a623; font-size: 12px; }
+  .error-item .desc { margin-top: 8px; line-height: 1.6; }
+  .error-item .severity { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 8px; }
+  .error-item .severity.critical { background: #e94560; }
+  .error-item .severity.medium { background: #f5a623; color: #1a1a2e; }
+  .error-item .severity.low { background: #4ecdc4; color: #1a1a2e; }
+
+  pre { background: #0d1117; border-radius: 6px; padding: 14px; margin-top: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre .highlight { background: rgba(233, 69, 96, 0.3); display: block; margin: 0 -14px; padding: 0 14px; }
+
+  .pusher-section { margin-top: 30px; }
+  .pusher-card { background: #1a1a2e; border-radius: 8px; padding: 18px; display: flex; align-items: center; gap: 20px; }
+  .avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #e94560, #0f3460); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; flex-shrink: 0; }
+  .pusher-info { flex: 1; }
+  .pusher-info .name { font-size: 18px; font-weight: bold; color: #e94560; }
+  .pusher-info .email { font-size: 13px; color: #888; margin-top: 2px; }
+  .pusher-info .commits { font-size: 13px; color: #4ecdc4; margin-top: 6px; }
+  .pusher-stats { display: flex; gap: 15px; }
+  .stat { text-align: center; }
+  .stat .val { font-size: 22px; font-weight: bold; }
+  .stat .lbl { font-size: 11px; color: #888; }
+
+  .chart-container { margin-top: 20px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-label { width: 160px; font-size: 13px; text-align: right; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 28px; background: #0d1117; border-radius: 4px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-size: 12px; font-weight: bold; transition: width 1s ease; }
+  .bar-fill.errors { background: linear-gradient(90deg, #e94560, #c0392b); }
+  .bar-fill.warnings { background: linear-gradient(90deg, #f5a623, #e67e22); }
+
+  .timeline { margin-top: 20px; }
+  .timeline-item { display: flex; gap: 15px; padding: 12px 0; border-bottom: 1px solid #0f3460; }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-date { color: #4ecdc4; font-family: monospace; font-size: 13px; min-width: 90px; }
+  .timeline-hash { color: #f5a623; font-family: monospace; font-size: 13px; min-width: 80px; }
+  .timeline-msg { color: #ccc; font-size: 13px; }
+  .timeline-author { color: #e94560; font-size: 12px; margin-left: auto; white-space: nowrap; }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 15px; }
+  .file-tile { background: #0d1117; border-radius: 6px; padding: 12px; font-size: 12px; font-family: monospace; border: 1px solid #0f3460; }
+  .file-tile.has-error { border-color: #e94560; }
+  .file-tile.has-warning { border-color: #f5a623; }
+  .file-tile.clean { border-color: #2ecc71; }
+  .file-tile .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .file-tile .status-dot.red { background: #e94560; }
+  .file-tile .status-dot.yellow { background: #f5a623; }
+  .file-tile .status-dot.green { background: #2ecc71; }
+</style>
+</head>
+<body>
+
+<h1>Unity Project Compile Errors Report</h1>
+<p class="subtitle">SampleScheduledTask &mdash; Scanned 21 custom scripts on 2026-03-30</p>
+
+<!-- Summary Cards -->
+<div class="summary-cards">
+  <div class="card error">
+    <div class="number">1</div>
+    <div class="label">Potential Compile Error</div>
+  </div>
+  <div class="card warning">
+    <div class="number">3</div>
+    <div class="label">Runtime Risks</div>
+  </div>
+  <div class="card info">
+    <div class="number">1</div>
+    <div class="label">Code Smell</div>
+  </div>
+  <div class="card ok">
+    <div class="number">17</div>
+    <div class="label">Clean Scripts</div>
+  </div>
+</div>
+
+<!-- Pusher Who Caused Issues -->
+<div class="section pusher-section">
+  <h2>Pusher Responsible for Issues</h2>
+  <div class="pusher-card">
+    <div class="avatar">DP</div>
+    <div class="pusher-info">
+      <div class="name">Duc.Phan Le Cong</div>
+      <div class="email">ducplc@vng.com.vn</div>
+      <div class="commits">5 commits &bull; All 21 custom scripts &bull; Sole contributor</div>
+    </div>
+    <div class="pusher-stats">
+      <div class="stat">
+        <div class="val" style="color:#e94560;">1</div>
+        <div class="lbl">Error</div>
+      </div>
+      <div class="stat">
+        <div class="val" style="color:#f5a623;">3</div>
+        <div class="lbl">Warnings</div>
+      </div>
+      <div class="stat">
+        <div class="val" style="color:#4ecdc4;">1</div>
+        <div class="lbl">Info</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Issues by File Bar Chart -->
+<div class="section">
+  <h2>Issues by File</h2>
+  <div class="chart-container">
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">ViewManager.cs</div>
+        <div class="bar-track">
+          <div class="bar-fill errors" style="width: 60%;">1 error + 1 smell</div>
+        </div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">ConfigManager.cs</div>
+        <div class="bar-track">
+          <div class="bar-fill warnings" style="width: 40%;">1 runtime risk</div>
+        </div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">PlayerDataManager.cs</div>
+        <div class="bar-track">
+          <div class="bar-fill warnings" style="width: 40%;">1 runtime risk</div>
+        </div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">AudioManager.cs</div>
+        <div class="bar-track">
+          <div class="bar-fill warnings" style="width: 30%;">1 unused import</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed Errors -->
+<div class="section">
+  <h2>Detailed Issues <span class="badge">5 total</span></h2>
+
+  <!-- Error 1 -->
+  <div class="error-item">
+    <span class="severity critical">CRITICAL - NullReferenceException</span>
+    <div class="file">Assets/Scripts/System/ViewManager.cs <span class="line-ref">Line 57</span></div>
+    <div class="desc">
+      <strong>Potential NullReferenceException:</strong> If no view matches the requested <code>viewType</code>, <code>result</code> remains <code>null</code>, and <code>result.ShowView(viewData)</code> will crash at runtime. This can cause the game to freeze/stuck.
+    </div>
+    <pre><code>public ViewBase ShowView(ViewType viewType, ViewData viewData = null)
+{
+    ViewBase result = null;
+    foreach (var view in views)
+    {
+        if(view.ViewType == viewType)
+            result = view;
+        else
+            view.HideView();
+    }
+<span class="highlight">    result.ShowView(viewData);  // CRASH if result is null!</span>
+    return result;
+}</code></pre>
+  </div>
+
+  <!-- Error 2 -->
+  <div class="error-item warning">
+    <span class="severity medium">MEDIUM - Circular Dependency / Startup Crash</span>
+    <div class="file">Assets/Scripts/System/ConfigManager.cs <span class="line-ref">Line 17-23</span></div>
+    <div class="desc">
+      <strong>Circular singleton dependency:</strong> <code>ConfigManager.Get_FirstLevel()</code> calls <code>PlayerDataManager.Instance</code>, but <code>PlayerDataManager.LoadPlayerData()</code> calls <code>ConfigManager.Instance.Get_FirstLevel()</code>. If either initializes first and triggers the other before it's ready, this creates infinite recursion or null access at startup, causing the game to stuck/freeze.
+    </div>
+    <pre><code>// ConfigManager.cs
+public int Get_FirstLevel() {
+<span class="highlight">    if (!PlayerDataManager.Instance.PlayerData.Is_FisnishTutorial)  // calls PlayerDataManager</span>
+        return 0;
+    return 1;
+}
+
+// PlayerDataManager.cs
+public PlayerData LoadPlayerData() {
+    ...
+<span class="highlight">    PlayerData.Current_Level_ID = ConfigManager.Instance.Get_FirstLevel();  // calls ConfigManager</span>
+    ...
+}</code></pre>
+  </div>
+
+  <!-- Error 3 -->
+  <div class="error-item warning">
+    <span class="severity medium">MEDIUM - Potential Startup NullRef</span>
+    <div class="file">Assets/Scripts/System/PlayerDataManager.cs <span class="line-ref">Line 17-23</span></div>
+    <div class="desc">
+      <strong>PlayerData accessed before initialization:</strong> <code>LoadPlayerData()</code> is called in <code>Start()</code>, but <code>ConfigManager.Get_FirstLevel()</code> accesses <code>PlayerDataManager.Instance.PlayerData</code> which may still be <code>null</code> at that point (before <code>Start()</code> completes). This will cause a NullReferenceException and the game gets stuck on boot.
+    </div>
+  </div>
+
+  <!-- Error 4 -->
+  <div class="error-item warning">
+    <span class="severity medium">MEDIUM - Race Condition</span>
+    <div class="file">Assets/Scripts/System/LoadSceneManager.cs <span class="line-ref">Line 7-11</span></div>
+    <div class="desc">
+      <strong>Callback invoked before scene loads:</strong> <code>SceneManager.LoadScene()</code> doesn't complete instantly, but <code>callBack</code> is invoked immediately after. The callback (e.g., <code>ShowView</code>) may reference objects that don't exist yet in the new scene.
+    </div>
+    <pre><code>public void LoadScene(string sceneName, Action callBack = null) {
+    SceneManager.LoadScene(sceneName);
+<span class="highlight">    callBack?.Invoke();  // Scene not loaded yet!</span>
+}</code></pre>
+  </div>
+
+  <!-- Error 5 -->
+  <div class="error-item info-item">
+    <span class="severity low">LOW - Unused Import</span>
+    <div class="file">Assets/Scripts/System/AudioManager.cs <span class="line-ref">Line 4</span></div>
+    <div class="desc">
+      <code>using System.Xml.Linq;</code> is imported but never used. This won't cause a compile error but is unnecessary bloat.
+    </div>
+  </div>
+</div>
+
+<!-- File Health Grid -->
+<div class="section">
+  <h2>Script Health Overview</h2>
+  <div class="file-grid">
+    <div class="file-tile has-error"><span class="status-dot red"></span>ViewManager.cs</div>
+    <div class="file-tile has-warning"><span class="status-dot yellow"></span>ConfigManager.cs</div>
+    <div class="file-tile has-warning"><span class="status-dot yellow"></span>PlayerDataManager.cs</div>
+    <div class="file-tile has-warning"><span class="status-dot yellow"></span>LoadSceneManager.cs</div>
+    <div class="file-tile has-warning"><span class="status-dot yellow"></span>AudioManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>GameManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>SystemManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>BootManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>EventManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>PopupManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>PopupBase.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>ViewBase.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>Data.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>Utils.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>PersistentSingleton.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>SceneSingleton.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>TimeManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>TutorialManager.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>TutorialStepBase.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>AutoDestroy.cs</div>
+    <div class="file-tile clean"><span class="status-dot green"></span>IEvent.cs</div>
+  </div>
+</div>
+
+<!-- Git Commit Timeline -->
+<div class="section">
+  <h2>Commit History</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-date">2026-03-26</div>
+      <div class="timeline-hash">012968f</div>
+      <div class="timeline-msg">Add Dotween to project settings</div>
+      <div class="timeline-author">Duc.Phan Le Cong</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-date">2026-03-26</div>
+      <div class="timeline-hash">f66c92a</div>
+      <div class="timeline-msg">Fix bug, add new dotween</div>
+      <div class="timeline-author">Duc.Phan Le Cong</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-date">2026-03-26</div>
+      <div class="timeline-hash">2f5bc88</div>
+      <div class="timeline-msg">Add DoTween</div>
+      <div class="timeline-author">Duc.Phan Le Cong</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-date">2026-03-26</div>
+      <div class="timeline-hash">8a15417</div>
+      <div class="timeline-msg">Add system scripts <span style="color:#e94560;">&larr; introduced all issues</span></div>
+      <div class="timeline-author">Duc.Phan Le Cong</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-date">2026-03-26</div>
+      <div class="timeline-hash">136bd29</div>
+      <div class="timeline-msg">First Init Commit</div>
+      <div class="timeline-author">Duc.Phan Le Cong</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
